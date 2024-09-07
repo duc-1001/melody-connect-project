@@ -26,7 +26,7 @@ def create_new_post(request):
     if request.method == 'POST':
         if request.user.is_authenticated: 
             content = request.POST.get('content')
-            music_links = request.POST.get('music_link', None)
+            music_links = request.POST.get('music_links', None)
             audio_files = request.FILES.getlist('audioFiles') 
             post = Post.objects.create(
                 content=content.strip(),
@@ -76,6 +76,7 @@ def get_all_post(request,id,page=1):
             'content':post.content.replace('\r\n', '<br>'),
             'created_at': format_date(post.created_at.isoformat()),
             'author': post.author.username,
+            'music_links':post.music_links.split('\r\n') if post.music_links else [],
             'audio_files': [
                 {
                     'id': audio.id,
@@ -120,6 +121,7 @@ def get_post_by_id(request, id):
         'created_at': format_date(post.created_at.isoformat()),
         'author': post.author.username,
         'audio_files': audio_files_data,
+        'music_links':post.music_links.split('\r\n') if post.music_links else [],
         'comments':comments_data
     }
     

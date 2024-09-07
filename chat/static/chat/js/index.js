@@ -4,7 +4,7 @@ const $$ = document.querySelectorAll.bind(document)
 function onClickOutside(element, callback) {
     function handleClickOutside(event) {
         if (!element.contains(event.target)) {
-            callback()
+            callback
         }
     }
     document.addEventListener('click', handleClickOutside);
@@ -51,18 +51,17 @@ const comment = {
             $(".search-result").classList.remove('hidden')
             $(".icon-back").classList.remove('hidden')
         }
-        $(".icon-back").onclick = () => {
-            $(".search-result").classList.add('hidden')
-            $(".icon-back").classList.add('hidden')
-        }
-        onClickOutside($(".search-user"), () => {
-            $(".search-result").classList.add('hidden')
-            $(".icon-back").classList.add('hidden')
-        });
+        $(".icon-back").onclick = _this.closeSearchUser()
+        onClickOutside($(".search-user"), _this.closeSearchUser());
 
         $(".icon-sender").onclick = function () {
             _this.sendMessage()
         }
+    },
+
+    closeSearchUser: function () {
+        $(".search-result").classList.add('hidden')
+        $(".icon-back").classList.add('hidden')
     },
 
     sendMessage: async function () {
@@ -106,17 +105,23 @@ const comment = {
             const response = JSON.parse(e.data);
             const data = response.message;
 
+            const idx = _this.getIndexRoom(data.room)
+            console.log($$(".room")[idx]);
+            $(".list-room").prepend($$(".room")[idx])
+
+            $(`div.room[name=${data.room}]`).querySelector(".mess-new").innerHTML = `${data.user === user.username ? "<div>Bạn: </div>" + `<div class="content-new-mess">${data.content}</div>` : `<div class="content-new-mess">${data.content}</div>`}`
+
             const listMessItem = $$(".messenger-item")
-            const checkMessUser = listMessItem[listMessItem.length-1]
-            if(checkMessUser){
-                if(checkMessUser.getAttribute('user')==data.user){
+            const checkMessUser = listMessItem[listMessItem.length - 1]
+            if (checkMessUser) {
+                if (checkMessUser.getAttribute('user') == data.user) {
                     checkMessUser.querySelector('.avatar-messenger').classList.add('opacity')
                 }
             }
-            
+
             const messagesItem = `
                 <div class="messenger-item ${data.user === user.username ? "sender" : ""}" user=${data.user}>
-                    <div class="avatar-messenger ${data.user === user.username ?  "opacity" : ""}">
+                    <div class="avatar-messenger ${data.user === user.username ? "opacity" : ""}">
                         <img src="https://yt3.ggpht.com/LKDMK6KpGDtsV11P1opuFEwjr5U5kI5BCiNEaA_v-dgGr30wfqlFAhhAvH4_xVzIIKPnI5gU=s48-c-k-c0x00ffffff-no-rj"
                         alt="avatar">
                     </div>
@@ -125,6 +130,7 @@ const comment = {
                     </div>
                 </div>
                 `
+
             $('.list-messenger').insertAdjacentHTML('beforeend', messagesItem);
             _this.scrollToBottom()
         };
@@ -145,12 +151,14 @@ const comment = {
 
     searchUser: async function (query) {
         try {
-            const res = await fetch(`search/?q=${query}`).then(res => res.json())
-            if (res.success) {
-                return res.data
-            }
-            else {
-                console.log(res.messager);
+            if (query) {
+                const res = await fetch(`search/?q=${query}`).then(res => res.json())
+                if (res.success) {
+                    return res.data
+                }
+                else {
+                    console.log(res.messager);
+                }
             }
         } catch (error) {
             console.log(error);
@@ -158,8 +166,12 @@ const comment = {
     },
 
     renderResultItem: function () {
-        const resultItems = this.searchResult.map(e => {
-            return `
+        const _this = this
+        console.log(this.searchResult);
+
+        if (this.searchResult?.length > 0) {
+            const resultItems = this.searchResult.map(e => {
+                return `
                     <div class="result-item" key = ${e.id}>
                         <div class="avatar-receiver">
                             <img src=${e.avatar} alt="avatar" />
@@ -169,14 +181,54 @@ const comment = {
                         </div>
                     </div>
                    `
-        })
-        $(".search-result").innerHTML = resultItems.join('')
-
+            })
+            $(".search-result").innerHTML = resultItems.join('')
+        }
+        else {
+            $(".search-result").innerHTML = '<div class="notify">  </div>'
+        }
         if ($$(".result-item").length > 0) {
             $$(".result-item").forEach(item => {
                 item.onclick = async function () {
                     const id = this.getAttribute('key')
                     const res = await fetch(`create_or_get_room/${id}/`).then(res => res.json())
+                    if (res.success) {
+                        const roomName = res.data.name
+                        if ($$(".room")) {
+                            const idx = _this.getIndexRoom(roomName)
+                            _this.resetActiveRoom()
+                            if (idx != -1) {
+                                $$(".room")[idx].classList.add('active')
+                            }
+                            else {
+                                const room = `
+                                <div class="room active} " key=${res.data.id} name=${roomName}>
+                                <div class="avatar-receiver">
+                                <img src="https://yt3.ggpht.com/LKDMK6KpGDtsV11P1opuFEwjr5U5kI5BCiNEaA_v-dgGr30wfqlFAhhAvH4_xVzIIKPnI5gU=s48-c-k-c0x00ffffff-no-rj"
+                                alt="avatar" />
+                                </div>
+                                <div class="info">
+                                <div class="name-receiver">
+                                ${res.data.other_user}
+                                </div>
+                                <div class="mess-new">
+                                
+                                </div>
+                                </div>
+                                </div>
+                                `
+                                $(".list-room").insertAdjacentHTML('afterbegin', room)
+                            }
+                            _this.closeSearchUser()
+                            if (roomName !== $(".content-title").getAttribute('room')) {
+                                _this.chatRoomName = roomName
+                                _this.getRoomChat()
+                            }
+                            $(".search-user-input").value = ''
+                            _this.querySearch = ''
+                            $(".search-result").innerHTML = ''
+                        }
+                    }
                 }
             })
         }
@@ -206,7 +258,7 @@ const comment = {
                                 ${e.other_user}
                             </div>
                             <div class="mess-new">
-                                OK
+                                ${e.mess.length > 0 ? (e.mess[0].user === user.username ? "<div>Bạn: </div>" + `<div class="content-new-mess">${e.mess[0].content}</div>` : `<div class="content-new-mess">${e.mess[0].content}</div>`) : ""}
                             </div>
                         </div>
                     </div>
@@ -216,9 +268,7 @@ const comment = {
                 if ($$(".room").length > 0) {
                     $$(".room").forEach(item => {
                         item.onclick = async function () {
-                            $$(".room").forEach(item => {
-                                item.classList.remove('active')
-                            })
+                            _this.resetActiveRoom()
                             this.classList.add('active')
                             if (_this.chatRoomName != this.getAttribute("name")) {
                                 _this.chatRoomName = this.getAttribute("name")
@@ -234,6 +284,20 @@ const comment = {
         } catch (error) {
             console.log(error);
         }
+    },
+
+    resetActiveRoom: function () {
+        $$(".room").forEach(item => {
+            item.classList.remove('active')
+        })
+    },
+
+    getIndexRoom: function (roomName) {
+        const listRoom = Array.from($$(".room")).map((e) => {
+            return e.getAttribute('name')
+        })
+        const idx = listRoom.findIndex((room) => room === roomName)
+        return idx
     },
 
     getRoomChat: async function () {
@@ -258,12 +322,13 @@ const comment = {
                             </div>
                             `;
                         });
-
-                        $(".name-room").innerHTML = res.room.other_user;
                         $('.list-messenger').innerHTML = messagesItems.join('');
                     } else {
-                        $('.list-messenger').innerHTML = `<p>No messages yet</p>`;
+                        $('.list-messenger').innerHTML = ``;
                     }
+                    $(".name-room").innerHTML = res.room.other_user;
+                    $('.content-title').setAttribute('room', res.room.name)
+                    this.scrollToBottom()
                 } else {
                     console.log(res);
                 }
@@ -289,7 +354,5 @@ const comment = {
         this.scrollToBottom()
     }
 }
-
-
 
 comment.start()

@@ -19,7 +19,7 @@ def getHome(request):
 def search_users(request):
     query = request.GET.get('q', '')
     if query:
-        users = User.objects.filter(username__icontains=query) | User.objects.filter(email__icontains=query)
+        users = User.objects.filter(username__icontains=query)
         results = [{'username': user.username, 'email': user.email,'id':user.id} for user in users]
     else:
         results = []
@@ -39,6 +39,7 @@ def create_or_get_room(request, user_id):
         )
 
     data = {
+            'id':room.id,
             'name':room.name,
             'other_user': room.user1.username if room.user1 != request.user else room.user2.username
         } 
@@ -50,13 +51,22 @@ def get_rooms(request):
     user = get_object_or_404(User, id=request.user.id)
     rooms  = Room.objects.filter(user1=user).order_by('-updated_at') | Room.objects.filter(user2=user).order_by('-updated_at')
     data = [
-        {
-            'id':room.id,
-            'name':room.name,
-            'other_user': room.user1.username if room.user1 != user else room.user2.username
-        } for room in rooms
-    ]
-
+    {
+        'id': room.id,
+        'name': room.name,
+        'other_user': room.user1.username if room.user1 != user else room.user2.username,
+        'mess': [
+            {
+                'id': mess.id,
+                'user': mess.user.username,
+                'content': mess.content.replace('\r\n', '<br>'),
+                'timestamp': mess.timestamp.isoformat()
+            }
+            for mess in Message.objects.filter(room=room).order_by("-timestamp")[:1]
+        ]
+    }
+    for room in rooms
+]
     return JsonResponse({'success':True, 'data':data})
 
 def get_room(request, name_room):
@@ -111,6 +121,7 @@ def sender_message(request):
                 'user':mess.user.username,
                 'content':mess.content.replace('\r\n','<br>'),
                 'timestamp':mess.timestamp.isoformat(),
+                'room':mess.room.name,
             }
             return JsonResponse({'success': True, 'data': data})
         else:
