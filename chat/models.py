@@ -14,6 +14,28 @@ class Room(models.Model):
     def __str__(self):
         return self.name
 
+class Friend(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('accepted', 'Accepted'),
+        ('rejected', 'Rejected'),
+        ('canceled', 'Canceled'),
+    ]
+    sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sender', default=1) 
+    receiver = models.ForeignKey(User, on_delete=models.CASCADE, related_name='receiver', default=1) 
+    status = models.CharField(
+        max_length=10, 
+        choices=STATUS_CHOICES, 
+        default='pending',  
+        blank=True, 
+        null=True
+    ),
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.sender.username} - {self.receiver.username} ({self.status})"
+
 class Message(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     room = models.ForeignKey(Room, related_name='messages', on_delete=models.CASCADE)
